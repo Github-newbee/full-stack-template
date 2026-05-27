@@ -1,0 +1,17 @@
+.env
+.venv
+__pycache__/
+*.pyc
+*.db
+*.log
+.pytest_cache/
+.ruff_cache/
+node_modules/
+.next/
+dist/
+*.tsbuildinfo
+storage/*
+!storage/.gitkeep
+
+.codegraph/
+.cursor/
