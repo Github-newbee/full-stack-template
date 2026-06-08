@@ -1,78 +1,66 @@
-# Frontend Design System Instructions
+# Agent Guidelines
 
-本项目的前端代码必须遵循 Aurora shadcn/Tailwind v4 设计系统。生成、修改页面或组件时，优先使用 `apps/web/app/globals.css` 中定义的 CSS 变量和 Tailwind token，不要硬编码新的品牌色、背景色、边框色或圆角体系。
+本文件用于约束 AI 在本仓库中的开发行为。目标是在实现需求时保持代码健壮、风格一致、边界清晰，并避免引入不必要的复杂度。
 
-## Core Stack
+## General Rules
 
-- 使用 Tailwind CSS v4 的 CSS-first 配置方式。
-- 全局样式入口是 `apps/web/app/globals.css`。
-- 保留以下导入顺序：
+- 所有文件读写使用 UTF-8 编码；修改文件时不要改变原有编码。
+- Always keep Chinese content unchanged.
+- 修改前先阅读相关代码、配置和已有约定，避免凭空重写或引入与项目不一致的实现。
+- 优先复用现有依赖、组件、工具函数、接口封装和目录结构，除非确有必要，不新增第三方库。
+- 变更应尽量小而明确，避免无关重构、格式化整仓文件或修改与当前任务无关的内容。
+- 对外部库、框架、SDK、API、CLI 工具或云服务的用法有疑问时，优先使用 Context7 MCP 查询最新官方文档。
 
-```css
-@import "tailwindcss";
-@import "tw-animate-css";
-@import "shadcn/tailwind.css";
-```
+## Development Workflow
 
-## Color Tokens
+1. 明确需求边界，识别涉及的前端、后端、数据模型、权限或测试范围。
+2. 阅读相关文件，确认现有模式后再实现。
+3. 按职责拆分代码，保持页面编排、业务组件、通用工具、接口模型分层清晰。
+4. 实现后按影响范围运行校验，并根据结果修复问题。
+5. 总结变更时说明改了什么、验证了什么，以及仍存在的风险或未验证项。
 
-使用语义化 token 编写 UI：
+## Robustness Requirements
 
-- 页面背景：`bg-background`
-- 默认文字：`text-foreground`
-- 卡片/面板：`bg-card text-card-foreground`
-- 弱化区域：`bg-muted text-muted-foreground`
-- 主按钮/主操作：`bg-primary text-primary-foreground`
-- 次级操作：`bg-secondary text-secondary-foreground`
-- 悬停/选中辅助态：`bg-accent text-accent-foreground`
-- 边框：`border-border`
-- 输入框边框：`border-input`
-- 焦点环：`ring-ring` 或 `outline-ring/50`
-- 危险操作：`bg-destructive`
+- 处理用户输入、接口返回、空数据、异常状态、权限状态和加载状态，避免只覆盖理想路径。
+- 保持类型定义准确，避免使用不必要的 `any`、隐式结构或重复定义接口。
+- 异步逻辑应处理失败、取消、重复请求或竞态风险，错误信息应可追踪且不泄露敏感数据。
+- API 返回结构、分页结构、权限依赖和 `response_model` 应保持一致。
+- 修改数据库模型时，同步考虑 schema、迁移、默认值、兼容性和测试。
+- 不把请求、状态管理、表单逻辑和展示逻辑全部堆在单个文件中。
 
-Aurora 扩展色只用于图表、状态点、徽标、强调性图形或少量品牌装饰：
+## Frontend Guidelines
 
-- `aurora-blue`
-- `aurora-green`
-- `aurora-purple`
-- `aurora-orange`
-- `aurora-navy`
-- `aurora-slate`
-- `aurora-line`
-- `aurora-soft`
+- 修改 `apps/web` 中的代码时，优先查看：
+  - `apps/web/package.json`：确认已安装依赖和项目技术栈。
+  - `apps/web/app/globals.css`：了解全局样式、颜色、间距、字体和 Tailwind 变量。
+- `apps/web` 使用 Next.js App Router：页面放在 `app/`，共享组件和工具放在 `src/components`、`src/lib`。
+- 新增 UI 优先复用已有 Tailwind 变量、`src/components/ui` 和布局组件。
+- 前端请求统一经过 `src/lib/api.ts`，认证状态统一经过 `src/lib/auth.tsx`，避免在页面中重复封装 token 和请求逻辑。
+- 可复用、职责清晰、逻辑较独立的 UI 或业务模块应抽离为独立组件。
+- 页面应覆盖加载、空状态、错误状态、禁用状态、权限不足和响应式布局。
 
-## Layout And Components
+## Backend Guidelines
 
-- 后台、管理台、业务系统界面应保持克制、清晰、信息密度适中。
-- 优先使用现有组件：`Button`、`Input`、`AppShell`、`EmptyState`、`Pagination`。
-- 页面主结构使用清晰的导航、表格、表单、列表和状态展示，不要生成营销式 hero。
-- 卡片只用于独立的信息单元、表格容器、表单容器或空状态，不要层层嵌套卡片。
-- 默认圆角使用 Tailwind 语义类：`rounded-md`、`rounded-lg`、`rounded-xl`，对应全局 `--radius`。
-- 图标优先使用 `lucide-react`。
+- `apps/api` 使用 FastAPI：业务路由按模块放在 `app/<domain>/routes.py`，通用能力放在 `app/core`。
+- 数据模型集中在 `apps/api/app/models.py`，接口结构集中在 `apps/api/app/schemas.py`。
+- 后端接口应保持 `response_model`、权限依赖、分页返回结构一致。
+- 新增或调整权限时，同步更新 `apps/api/app/roles.py`，并检查相关路由保护。
+- 业务逻辑应避免散落在路由函数中；复杂逻辑优先抽入服务层或清晰的辅助函数。
+- 输入校验、异常处理、事务边界和数据库查询性能应随功能一起考虑。
 
-## Typography
+## Testing And Validation
 
-- 字体使用全局 `font-sans`。
-- 标题使用 `font-semibold`，避免过大的展示字号。
-- 管理台内文案以功能、状态、动作命名为主，避免宣传语。
-- 所有中文内容保持原样，不要随意改写已有中文。
-
-## Dark Mode
-
-- 暗色模式通过 `.dark` 类触发。
-- 新增样式必须使用语义 token，确保亮色和暗色都能自动适配。
-- 不要只为亮色模式硬编码 `white`、`slate-*`、`blue-*` 等颜色；必要时优先映射到语义 token。
-
-## Interaction
-
-- 可交互元素必须有清晰 hover/focus/disabled 状态。
-- 输入框使用 `focus:border-primary`、`focus:ring-2`、`focus:ring-ring/20` 一类 token 化焦点样式。
-- 动效可以使用 `tw-animate-css` 提供的动画类，但要保持克制，不影响后台操作效率。
+- 提交前按影响范围运行校验：
+  - 前端优先运行 `pnpm typecheck` 和 `pnpm biome:check`。
+  - 后端优先运行 `uv run pytest`。
+- 新增复杂逻辑、权限规则、数据模型或接口行为时，应补充相应测试。
+- 无法运行校验时，应明确说明原因和未覆盖风险。
+- 修复 bug 时优先补充能复现问题的测试，避免只改表面现象。
 
 ## Do Not
 
-- 不要新增 `tailwind.config.js` 或旧版 Tailwind v3 写法。
-- 不要使用 `@tailwind base/components/utilities`。
-- 不要引入 `autoprefixer` 或 `postcss-import`。
-- 不要新增与 Aurora token 冲突的独立色板。
-- 不要把中文文案翻译、替换或改写成英文。
+- 不要随意翻译、替换或改写已有中文内容。
+- 不要绕过 `src/lib/api.ts` 或 `src/lib/auth.tsx` 重复实现前端请求和认证逻辑。
+- 不要无必要引入新依赖、新框架或新的全局状态方案。
+- 不要为了通过检查而删除测试、降低类型约束或隐藏错误。
+- 不要提交未解释的大范围重构、无关格式化或与需求无关的文件变更。
