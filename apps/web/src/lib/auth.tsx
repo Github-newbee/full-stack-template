@@ -7,8 +7,9 @@ import type { User } from "@/lib/types";
 type AuthContextValue = {
   user: User | null;
   ready: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (username: string, password: string) => Promise<void>;
   logout: () => void;
+  refreshUser: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -32,10 +33,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     () => ({
       user,
       ready,
-      async login(email: string, password: string) {
+      async login(username: string, password: string) {
         const token = await api<{ access_token: string }>("/auth/login", {
           method: "POST",
-          body: JSON.stringify({ email, password }),
+          body: JSON.stringify({ username, password }),
         });
         setToken(token.access_token);
         const currentUser = await api<User>("/auth/me");
@@ -44,6 +45,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       logout() {
         setToken(null);
         setUser(null);
+      },
+      async refreshUser() {
+        const currentUser = await api<User>("/auth/me");
+        setUser(currentUser);
       },
     }),
     [ready, user],

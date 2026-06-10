@@ -6,26 +6,25 @@ import { FormEvent, useState } from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useAsyncAction } from "@/hooks/useAsyncAction";
+import { getErrorMessage } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 
 export default function LoginPage() {
   const router = useRouter();
   const { login } = useAuth();
-  const [email, setEmail] = useState("admin@example.com");
+  const [username, setUsername] = useState("admin");
   const [password, setPassword] = useState("admin123456");
-  const [loading, setLoading] = useState(false);
+  const loginAction = useAsyncAction(login);
 
   async function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setLoading(true);
     try {
-      await login(email, password);
+      await loginAction.execute(username, password);
       toast.success("登录成功");
       router.push("/dashboard");
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "登录失败");
-    } finally {
-      setLoading(false);
+      toast.error(getErrorMessage(error, "登录失败"));
     }
   }
 
@@ -40,13 +39,13 @@ export default function LoginPage() {
           <p className="mt-2 text-sm text-muted-foreground">使用默认管理员账号进入模板后台。</p>
         </div>
         <label className="mb-4 block text-sm font-medium">
-          邮箱
+          用户名
           <Input
             className="mt-2"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            type="email"
-            autoComplete="email"
+            value={username}
+            onChange={(event) => setUsername(event.target.value)}
+            type="text"
+            autoComplete="username"
           />
         </label>
         <label className="mb-6 block text-sm font-medium">
@@ -59,8 +58,12 @@ export default function LoginPage() {
             autoComplete="current-password"
           />
         </label>
-        <Button className="w-full" type="submit" disabled={loading}>
-          {loading ? <Loader2 className="size-4 animate-spin" /> : <LogIn className="size-4" />}
+        <Button className="w-full" type="submit" disabled={loginAction.pending}>
+          {loginAction.pending ? (
+            <Loader2 className="size-4 animate-spin" />
+          ) : (
+            <LogIn className="size-4" />
+          )}
           登录
         </Button>
       </form>

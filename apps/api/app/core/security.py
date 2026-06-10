@@ -5,7 +5,6 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from jose import JWTError, jwt
 from passlib.context import CryptContext
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.config import get_settings
@@ -60,10 +59,3 @@ def get_current_user(
 
 
 CurrentUser = Annotated[User, Depends(get_current_user)]
-
-
-def authenticate_user(db: Session, email: str, password: str) -> User | None:
-    user = db.scalars(select(User).where(User.email == email)).first()
-    if user is None or not verify_password(password, user.hashed_password):
-        return None
-    return user

@@ -1,7 +1,6 @@
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
@@ -10,6 +9,7 @@ from app.core.security import CurrentUser
 from app.models import Task
 from app.pagination import PageResponse
 from app.schemas import TaskCreate, TaskRead
+from app.tasks.service import TaskService
 
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
@@ -25,11 +25,13 @@ def list_tasks(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PageResponse[TaskRead]:
-    total = db.scalar(select(func.count()).select_from(Task)) or 0
-    tasks = db.scalars(
-        select(Task).order_by(Task.id.desc()).offset((page - 1) * page_size).limit(page_size)
-    ).all()
-    return PageResponse(items=list(tasks), total=total, page=page, page_size=page_size)
+    result = TaskService(db).list_tasks(page=page, page_size=page_size)
+    return PageResponse(
+        items=result.items,
+        total=result.total,
+        page=result.page,
+        page_size=result.page_size,
+    )
 
 
 @router.post(
@@ -42,13 +44,4 @@ def create_task(
     current_user: CurrentUser,
     db: Annotated[Session, Depends(get_db)],
 ) -> Task:
-    task = Task(
-        name=payload.name,
-        message=payload.message,
-        status="queued",
-        created_by_id=current_user.id,
-    )
-    db.add(task)
-    db.commit()
-    db.refresh(task)
-    return task
+    return TaskService(db).create_task(payload, current_user)

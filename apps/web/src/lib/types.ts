@@ -12,7 +12,8 @@ export type Role = {
 
 export type User = {
   id: string;
-  email: string;
+  username: string;
+  email: string | null;
   full_name: string;
   is_active: boolean;
   is_superuser: boolean;

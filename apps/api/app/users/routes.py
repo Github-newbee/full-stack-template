@@ -1,30 +1,20 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, Query, Response, status
 from sqlalchemy.orm import Session
 
 from app.core.database import get_db
+from app.core.errors import ServiceError, to_http_exception
 from app.core.permissions import require_permission
-from app.core.security import get_password_hash
-from app.core.snowflake import parse_snowflake_id
-from app.models import Role, User
+from app.core.request_ids import parse_request_id, parse_request_ids
+from app.core.security import CurrentUser
+from app.models import User
 from app.pagination import PageResponse
 from app.schemas import UserCreate, UserRead, UserUpdate
+from app.users.service import UserService
 
 
 router = APIRouter(prefix="/users", tags=["users"])
-
-
-def parse_request_id(value: str) -> int:
-    try:
-        return parse_snowflake_id(value)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail="Invalid snowflake id") from exc
-
-
-def parse_request_ids(values: list[str]) -> list[int]:
-    return [parse_request_id(value) for value in values]
 
 
 @router.get(
@@ -37,11 +27,25 @@ def list_users(
     page: Annotated[int, Query(ge=1)] = 1,
     page_size: Annotated[int, Query(ge=1, le=100)] = 20,
 ) -> PageResponse[UserRead]:
-    total = db.scalar(select(func.count()).select_from(User)) or 0
-    users = db.scalars(
-        select(User).order_by(User.id).offset((page - 1) * page_size).limit(page_size)
-    ).all()
-    return PageResponse(items=list(users), total=total, page=page, page_size=page_size)
+    result = UserService(db).list_users(page=page, page_size=page_size)
+    return PageResponse(
+        items=result.items,
+        total=result.total,
+        page=result.page,
+        page_size=result.page_size,
+    )
+
+
+@router.get(
+    "/{user_id}",
+    response_model=UserRead,
+    dependencies=[Depends(require_permission("users.read"))],
+)
+def get_user(user_id: str, db: Annotated[Session, Depends(get_db)]) -> User:
+    try:
+        return UserService(db).get_user(parse_request_id(user_id))
+    except ServiceError as exc:
+        raise to_http_exception(exc) from exc
 
 
 @router.post(
@@ -49,23 +53,16 @@ def list_users(
     response_model=UserRead,
     dependencies=[Depends(require_permission("users.write"))],
 )
-def create_user(payload: UserCreate, db: Annotated[Session, Depends(get_db)]) -> User:
-    existing = db.scalars(select(User).where(User.email == payload.email)).first()
-    if existing:
-        raise HTTPException(status_code=409, detail="Email already exists")
+def create_user(
+    payload: UserCreate,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: CurrentUser,
+) -> User:
     role_ids = parse_request_ids(payload.role_ids)
-    roles = db.scalars(select(Role).where(Role.id.in_(role_ids))).all()
-    user = User(
-        email=str(payload.email),
-        full_name=payload.full_name,
-        hashed_password=get_password_hash(payload.password),
-        is_superuser=payload.is_superuser,
-        roles=list(roles),
-    )
-    db.add(user)
-    db.commit()
-    db.refresh(user)
-    return user
+    try:
+        return UserService(db).create_user(payload, role_ids, actor=current_user)
+    except ServiceError as exc:
+        raise to_http_exception(exc) from exc
 
 
 @router.patch(
@@ -77,17 +74,32 @@ def update_user(
     user_id: str,
     payload: UserUpdate,
     db: Annotated[Session, Depends(get_db)],
+    current_user: CurrentUser,
 ) -> User:
-    user = db.get(User, parse_request_id(user_id))
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-    if payload.full_name is not None:
-        user.full_name = payload.full_name
-    if payload.is_active is not None:
-        user.is_active = payload.is_active
-    if payload.role_ids is not None:
-        role_ids = parse_request_ids(payload.role_ids)
-        user.roles = list(db.scalars(select(Role).where(Role.id.in_(role_ids))).all())
-    db.commit()
-    db.refresh(user)
-    return user
+    parsed_role_ids = parse_request_ids(payload.role_ids) if payload.role_ids is not None else None
+    try:
+        return UserService(db).update_user(
+            parse_request_id(user_id),
+            payload,
+            parsed_role_ids,
+            actor=current_user,
+        )
+    except ServiceError as exc:
+        raise to_http_exception(exc) from exc
+
+
+@router.delete(
+    "/{user_id}",
+    status_code=status.HTTP_204_NO_CONTENT,
+    dependencies=[Depends(require_permission("users.write"))],
+)
+def delete_user(
+    user_id: str,
+    db: Annotated[Session, Depends(get_db)],
+    current_user: CurrentUser,
+) -> Response:
+    try:
+        UserService(db).delete_user(parse_request_id(user_id), actor=current_user)
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
+    except ServiceError as exc:
+        raise to_http_exception(exc) from exc

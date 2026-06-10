@@ -1,8 +1,10 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 
+from app.auth.service import AuthService
 from app.core.database import get_db
-from app.core.security import CurrentUser, authenticate_user, create_access_token
+from app.core.errors import ServiceError, to_http_exception
+from app.core.security import CurrentUser
 from app.schemas import LoginRequest, Token, UserRead
 
 
@@ -11,13 +13,11 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 @router.post("/login", response_model=Token)
 def login(payload: LoginRequest, db: Session = Depends(get_db)) -> Token:
-    user = authenticate_user(db, payload.email, payload.password)
-    if user is None:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect email or password",
-        )
-    return Token(access_token=create_access_token(str(user.id)))
+    try:
+        access_token = AuthService(db).login(username=payload.username, password=payload.password)
+        return Token(access_token=access_token)
+    except ServiceError as exc:
+        raise to_http_exception(exc) from exc
 
 
 @router.get("/me", response_model=UserRead)

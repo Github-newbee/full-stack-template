@@ -1,3 +1,5 @@
+name: finance
+
 services:
   postgres:
     image: postgres:16-alpine
@@ -57,3 +59,4 @@ services:
 
 volumes:
   postgres-data:
+    name: finance-postgres-data

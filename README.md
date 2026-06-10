@@ -28,7 +28,7 @@ Open:
 
 Default admin:
 
-- Email: `admin@example.com`
+- Username: `admin`
 - Password: `admin123456`
 
 ## Local Development Without Docker

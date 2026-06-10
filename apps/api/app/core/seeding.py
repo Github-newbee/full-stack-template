@@ -9,6 +9,7 @@ from app.models import Permission, Role, User
 def seed_defaults(
     db: Session,
     *,
+    admin_username: str = "admin",
     admin_email: str = "admin@example.com",
     admin_password: str = "admin123456",
     admin_full_name: str = "Template Admin",
@@ -29,9 +30,12 @@ def seed_defaults(
     admin_role.permissions = list(permissions_by_code.values())
 
     if seed_admin:
-        admin_user = db.scalars(select(User).where(User.email == admin_email)).first()
+        admin_user = db.scalars(select(User).where(User.username == admin_username)).first()
+        if admin_user is None:
+            admin_user = db.scalars(select(User).where(User.email == admin_email)).first()
         if admin_user is None:
             admin_user = User(
+                username=admin_username,
                 email=admin_email,
                 full_name=admin_full_name,
                 hashed_password=get_password_hash(admin_password),
@@ -39,5 +43,8 @@ def seed_defaults(
                 roles=[admin_role],
             )
             db.add(admin_user)
+        else:
+            admin_user.username = admin_username
+            admin_user.roles = [admin_role]
 
     db.commit()

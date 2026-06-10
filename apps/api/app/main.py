@@ -8,7 +8,7 @@ from app.assets.routes import router as assets_router
 from app.auth.routes import router as auth_router
 from app.core.config import get_settings
 from app.core.migrate import run_startup_tasks
-from app.roles_routes import router as roles_router
+from app.roles.routes import router as roles_router
 from app.tasks.routes import router as tasks_router
 from app.users.routes import router as users_router
 

@@ -1,8 +1,17 @@
+from dataclasses import dataclass
 from typing import Generic, TypeVar
 
 from pydantic import BaseModel
 
 T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class PageResult(Generic[T]):
+    items: list[T]
+    total: int
+    page: int
+    page_size: int
 
 
 class PageResponse(BaseModel, Generic[T]):

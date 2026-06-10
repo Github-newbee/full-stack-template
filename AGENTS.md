@@ -19,6 +19,23 @@
 4. 实现后按影响范围运行校验，并根据结果修复问题。
 5. 总结变更时说明改了什么、验证了什么，以及仍存在的风险或未验证项。
 
+## Current Project Structure
+
+- `apps/web` 是 Next.js App Router 前端项目：
+  - `app/layout.tsx` 只放根布局、全局 provider、全局样式和全局 toaster。
+  - `app/(app)/layout.tsx` 是登录后后台系统布局，统一包裹 `AuthGate` 和 `AppShell`。
+  - `app/(app)/loading.tsx`、`app/(app)/error.tsx` 是后台区域的路由级加载和错误边界。
+  - `app/(app)/**/page.tsx` 只作为页面入口，组合对应 feature 组件，不直接承载请求、复杂状态和 CRUD 逻辑。
+  - `app/login/page.tsx` 是独立登录页，不应被后台 `AppShell` 包裹。
+  - `src/components` 放跨业务共享组件，`src/components/ui` 放通用基础 UI。
+  - `src/features/<domain>` 放业务模块，例如 `assets`、`tasks`、`roles`、`users`；模块内优先按 `api.ts`、`components/`、必要的 `permissions.ts` 或业务工具拆分。
+  - `src/lib/api.ts` 是唯一前端 API client 入口，`src/lib/auth.tsx` 是唯一认证状态入口，`src/lib/types.ts` 放共享接口类型。
+- `apps/api` 是 FastAPI 后端项目：
+  - `app/<domain>/routes.py`、`service.py`、`repository.py` 按领域组织业务。
+  - `app/core` 放配置、数据库、安全、权限、错误、初始化等通用能力。
+  - `app/models.py` 放 SQLAlchemy 模型，`app/schemas.py` 放接口 schema。
+- `deploy`、`docs`、`storage` 分别放部署配置、项目文档和本地持久化文件。
+
 ## Robustness Requirements
 
 - 处理用户输入、接口返回、空数据、异常状态、权限状态和加载状态，避免只覆盖理想路径。
@@ -33,20 +50,36 @@
 - 修改 `apps/web` 中的代码时，优先查看：
   - `apps/web/package.json`：确认已安装依赖和项目技术栈。
   - `apps/web/app/globals.css`：了解全局样式、颜色、间距、字体和 Tailwind 变量。
-- `apps/web` 使用 Next.js App Router：页面放在 `app/`，共享组件和工具放在 `src/components`、`src/lib`。
+- `apps/web` 使用 Next.js App Router：页面放在 `app/`，共享组件和工具放在 `src/components`、`src/lib`，业务模块放在 `src/features/<domain>`。
+- 受保护后台页面必须放在 `app/(app)` route group 下，由 `app/(app)/layout.tsx` 统一处理 `AuthGate`、`AppShell`、侧边栏、顶部栏和系统级布局。
+- 业务 `page.tsx` 应保持轻量：只导入并渲染 feature 组件；不要在 `page.tsx` 中直接写 `useEffect`、`useState`、API 请求、表格列定义、弹窗编排或复杂权限判断。
+- 业务请求封装在 `src/features/<domain>/api.ts`，业务 UI 放在 `src/features/<domain>/components`，权限判断或领域工具放在同一 feature 的独立文件中。
 - 新增 UI 优先复用已有 Tailwind 变量、`src/components/ui` 和布局组件。
 - 前端请求统一经过 `src/lib/api.ts`，认证状态统一经过 `src/lib/auth.tsx`，避免在页面中重复封装 token 和请求逻辑。
 - 可复用、职责清晰、逻辑较独立的 UI 或业务模块应抽离为独立组件。
-- 页面应覆盖加载、空状态、错误状态、禁用状态、权限不足和响应式布局。
+- 页面应覆盖加载、空状态、错误状态、禁用状态、权限不足和响应式布局；后台区域优先复用 `app/(app)/loading.tsx`、`app/(app)/error.tsx`，组件内部仍需处理业务级加载和错误状态。
+- 能作为 Server Component 的 `page.tsx` 不要加 `"use client"`；只在需要浏览器状态、事件、effect、localStorage 或上下文 hook 的组件文件中使用 `"use client"`。
+- 不要把 `AppShell`、`AuthGate` 等系统布局组件写进业务组件或业务页面；系统布局只在 layout 层组合。
 
 ## Backend Guidelines
 
 - `apps/api` 使用 FastAPI：业务路由按模块放在 `app/<domain>/routes.py`，通用能力放在 `app/core`。
 - 数据模型集中在 `apps/api/app/models.py`，接口结构集中在 `apps/api/app/schemas.py`。
 - 后端接口应保持 `response_model`、权限依赖、分页返回结构一致。
-- 新增或调整权限时，同步更新 `apps/api/app/roles.py`，并检查相关路由保护。
+- 新增或调整权限时，同步更新 `apps/api/app/core/permissions.py`，并检查 `apps/api/app/core/seeding.py` 的初始化数据和相关路由保护。
 - 业务逻辑应避免散落在路由函数中；复杂逻辑优先抽入服务层或清晰的辅助函数。
 - 输入校验、异常处理、事务边界和数据库查询性能应随功能一起考虑。
+
+## Backend Layering Rules
+
+- 新增或修改后端业务时，默认采用 `routes.py`、`service.py`、`repository.py` 三层结构。
+- `routes.py` 只负责 HTTP 层：路由声明、依赖注入、权限依赖、请求参数解析、响应模型和把业务异常转换为 HTTP 异常。
+- `service.py` 负责业务层：业务规则、跨表/跨资源编排、事务提交、状态变更、文件存储等副作用协调。
+- `repository.py` 负责数据访问层：封装 SQLAlchemy 查询、计数、分页、按 ID/唯一键读取和新增对象，不在路由中直接写查询。
+- 路由函数中不要直接调用 `select()`、`db.scalars()`、`db.add()`、`db.commit()` 等数据库操作；除 `Depends(get_db)` 外，数据库会话应传入 service/repository 使用。
+- 业务异常优先使用 `app/core/errors.py` 中的业务异常类型，由路由层转换为 HTTP 响应，避免 service 层直接依赖 FastAPI 的 `HTTPException`。
+- 每个领域模块优先保持自包含，例如 `app/users/routes.py`、`app/users/service.py`、`app/users/repository.py`；跨领域复用逻辑放在 `app/core` 或明确的共享模块。
+- 新增业务接口时，应同步考虑对应 service/repository 测试；至少保证路由层、业务层和数据访问层职责没有重新混在一起。
 
 ## Testing And Validation
 

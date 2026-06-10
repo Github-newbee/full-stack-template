@@ -10,7 +10,7 @@
 
 ## 默认账号
 
-- 邮箱：`admin@example.com`
+- 用户名：`admin`
 - 密码：`admin123456`
 
 请在正式项目中修改默认账号、`SECRET_KEY` 和权限初始化逻辑。

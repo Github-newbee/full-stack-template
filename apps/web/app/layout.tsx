@@ -4,8 +4,8 @@ import "./globals.css";
 import { AuthProvider } from "@/lib/auth";
 
 export const metadata: Metadata = {
-  title: "Full Stack Admin Template",
-  description: "Next.js + FastAPI full-stack admin template",
+  title: "财务系统",
+  description: "",
 };
 
 export default function RootLayout({

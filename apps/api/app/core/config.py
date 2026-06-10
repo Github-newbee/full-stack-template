@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     storage_dir: Path = Path("storage")
     max_upload_mb: int = 20
     seed_admin: bool = True
+    admin_username: str = "admin"
     admin_email: EmailStr | str = "admin@example.com"
     admin_password: str = "admin123456"
     admin_full_name: str = "Template Admin"

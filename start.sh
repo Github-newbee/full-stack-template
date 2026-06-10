@@ -137,6 +137,7 @@ WEB_ORIGIN="${WEB_ORIGIN:-http://localhost:${WEB_PORT}}"
 NEXT_PUBLIC_API_URL="${NEXT_PUBLIC_API_URL:-${API_ORIGIN}/api}"
 CORS_ORIGINS="${CORS_ORIGINS:-[\"${WEB_ORIGIN}\"]}"
 SEED_ADMIN="${SEED_ADMIN:-1}"
+ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 ADMIN_EMAIL="${ADMIN_EMAIL:-admin@example.com}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-admin123456}"
 ADMIN_FULL_NAME="${ADMIN_FULL_NAME:-Template Admin}"
@@ -144,12 +145,13 @@ ADMIN_FULL_NAME="${ADMIN_FULL_NAME:-Template Admin}"
 export API_PORT WEB_PORT POSTGRES_PORT
 export POSTGRES_DB POSTGRES_USER POSTGRES_PASSWORD
 export API_ORIGIN WEB_ORIGIN NEXT_PUBLIC_API_URL CORS_ORIGINS
-export SEED_ADMIN ADMIN_EMAIL ADMIN_PASSWORD ADMIN_FULL_NAME
+export SEED_ADMIN ADMIN_USERNAME ADMIN_EMAIL ADMIN_PASSWORD ADMIN_FULL_NAME
 
 run_api_startup_tasks_dev() {
   echo "Ensuring database schema and initial data are ready..."
   compose_dev exec -T \
     -e SEED_ADMIN="$SEED_ADMIN" \
+    -e ADMIN_USERNAME="$ADMIN_USERNAME" \
     -e ADMIN_EMAIL="$ADMIN_EMAIL" \
     -e ADMIN_PASSWORD="$ADMIN_PASSWORD" \
     -e ADMIN_FULL_NAME="$ADMIN_FULL_NAME" \
@@ -160,6 +162,7 @@ run_api_startup_tasks_deploy() {
   echo "Ensuring database schema and initial data are ready..."
   compose_deploy exec -T \
     -e SEED_ADMIN="$SEED_ADMIN" \
+    -e ADMIN_USERNAME="$ADMIN_USERNAME" \
     -e ADMIN_EMAIL="$ADMIN_EMAIL" \
     -e ADMIN_PASSWORD="$ADMIN_PASSWORD" \
     -e ADMIN_FULL_NAME="$ADMIN_FULL_NAME" \

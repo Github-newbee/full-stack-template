@@ -1,10 +1,13 @@
 from datetime import datetime
 from typing import Annotated
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr
+from pydantic import BaseModel, BeforeValidator, ConfigDict, EmailStr, Field
 
 
 SnowflakeId = Annotated[str, BeforeValidator(lambda value: str(value))]
+Username = Annotated[str, Field(min_length=1, max_length=80)]
+Password = Annotated[str, Field(min_length=8, max_length=128)]
+FullName = Annotated[str, Field(max_length=120)]
 
 
 class PermissionRead(BaseModel):
@@ -31,7 +34,8 @@ class RoleCreate(BaseModel):
 
 class UserRead(BaseModel):
     id: SnowflakeId
-    email: EmailStr
+    username: Username
+    email: EmailStr | None
     full_name: str
     is_active: bool
     is_superuser: bool
@@ -41,16 +45,22 @@ class UserRead(BaseModel):
 
 
 class UserCreate(BaseModel):
-    email: EmailStr
-    password: str
-    full_name: str = ""
+    username: Username
+    email: EmailStr | None = None
+    password: Password
+    full_name: FullName = ""
+    is_active: bool = True
     is_superuser: bool = False
     role_ids: list[SnowflakeId] = []
 
 
 class UserUpdate(BaseModel):
-    full_name: str | None = None
+    username: Username | None = None
+    email: EmailStr | None = None
+    password: Password | None = None
+    full_name: FullName | None = None
     is_active: bool | None = None
+    is_superuser: bool | None = None
     role_ids: list[SnowflakeId] | None = None
 
 
@@ -60,7 +70,7 @@ class Token(BaseModel):
 
 
 class LoginRequest(BaseModel):
-    email: EmailStr
+    username: Username
     password: str
 
 
